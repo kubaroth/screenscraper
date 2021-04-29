@@ -11,7 +11,6 @@
 package main
 
  import (
-    "github.com/kbinani/screenshot"
     "image/png"
     "image"
 	"image/color"
@@ -178,11 +177,6 @@ func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x,y int){
 // but reuquires to switch active window to the one we want to capture.
 func getCaptureArea() (rect image.Rectangle) {
 
-    if runtime.GOOS != "linux" {
-        bounds := screenshot.GetDisplayBounds(0)  // Display: 0
-        return bounds
-    }
-
     // XCB - version - determin bounds with User's input
     X, err := xgbutil.NewConn()
     if err != nil {
@@ -249,13 +243,6 @@ func getCaptureArea() (rect image.Rectangle) {
 
 func capture_image(x,y,w,h int) (*image.RGBA){
     var img *image.RGBA
-    // bounds := image.Rect(x, y, x+w, y+h)
-    // // fmt.Println(bounds)
-    // img, err := screenshot.CaptureRect(bounds)
-    // if err != nil {
-    //     panic(err)
-    // }
-
 
     X, err := xgbutil.NewConn()
     if err != nil {
