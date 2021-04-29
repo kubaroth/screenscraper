@@ -14,15 +14,14 @@ package main
     "github.com/kbinani/screenshot"
     "image/png"
     "image"
+	"image/color"
     "os"
     "fmt"
     "log"
-    _ "strings"
-    "time"
+    _ "time"
 
     "github.com/BurntSushi/xgbutil"
     "github.com/BurntSushi/xgbutil/ewmh"
-    _ "github.com/BurntSushi/xgbutil/icccm"
     "github.com/BurntSushi/xgbutil/xwindow"
 
     "github.com/BurntSushi/xgbutil/mousebind"
@@ -34,12 +33,12 @@ package main
     "github.com/BurntSushi/xgb"  // active window
 
 
-    "github.com/micmonay/keybd_event"
+    _ "github.com/micmonay/keybd_event"
     "runtime"
     "regexp"
 
-    "github.com/jung-kurt/gofpdf"
-    "path/filepath"
+    _ "github.com/jung-kurt/gofpdf"
+    _ "path/filepath"
  )
 
 // This function returns the name of the current active window
@@ -248,87 +247,41 @@ func getCaptureArea() (rect image.Rectangle) {
     return bounds
 }
 
-
-// func window_sizes(window_name string) (int,int,int,int, string) {
-//     // Connect to the X server using the DISPLAY environment variable.
-//     X, err := xgbutil.NewConn()
-//     if err != nil {
-//         log.Fatal(err)
-//     }
-
-//     // Get a list of all client ids.
-//     clientids, err := ewmh.ClientListGet(X)
-//     if err != nil {
-//         log.Fatal(err)
-//     }
-
-
-//     var x,y,w,h int
-//      var window_name_to_focus string
-
-//     // Iterate through each client, find its name and find its size.
-//     for _, clientid := range clientids {
-//         name, err := ewmh.WmNameGet(X, clientid)
-
-//         if !(strings.Contains(name, window_name)){
-//             continue
-//         }
-
-//         // If there was a problem getting _NET_WM_NAME or if its empty,
-//         // try the old-school version.
-//         if err != nil || len(name) == 0 {
-//             name, err = icccm.WmNameGet(X, clientid)
-//             // If we still can't find anything, give up.
-//             if err != nil || len(name) == 0 {
-//                 name = "N/A"
-//             }
-//         }
-
-//          // Store name of the Chrome window - used for file naming
-//          // Replace non-matching characters which can cause problems in file names
-//          re := regexp.MustCompile(`[^a-zA-Z0_9]`)
-//          window_name_to_focus = string(re.ReplaceAll([]byte(name), []byte("")))
-
-//          // TODO: this does not for some reason - Chrome window is not brought to foucs
-//          err = ewmh.ActiveWindowSet(X, clientid)
-//          fmt.Println("Check active if error", clientid, err, window_name_to_focus)
-//          if err != nil {
-//              fmt.Println(err)
-//          }
-//          // xprop.ChangeProp32(X, xu.RootWin(), "_NET_ACTIVE_WINDOW", "WINDOW",
-//          // uint(win))
-
-//         // Now find the geometry, including decorations, of the client window.
-//         // Note that DecorGeometry actually traverses the window tree by
-//         // issuing QueryTree requests until a top-level window (i.e., its
-//         // parent is the root window) is found. The geometry of *that* window
-//         // is then returned.
-//         dgeom, err := xwindow.New(X, clientid).DecorGeometry()
-//         if err != nil {
-//             log.Printf("Could not get geometry for %s (0x%X) because: %s",
-//                 name, clientid, err)
-//             continue
-//         }
-
-//         x,y,w,h =  dgeom.Pieces()
-
-//         fmt.Printf("%s (0x%x)\n", name, clientid)
-//         fmt.Printf("\tGeometry: %s\n", dgeom)
-//     }
-//     return x,y,w,h, window_name_to_focus
-// }
-
-
 func capture_image(x,y,w,h int) (*image.RGBA){
     var img *image.RGBA
-    bounds := image.Rect(x, y, x+w, y+h)
-    // fmt.Println(bounds)
-    img, err := screenshot.CaptureRect(bounds)
-    if err != nil {
-        panic(err)
-    }
-    return img
+    // bounds := image.Rect(x, y, x+w, y+h)
+    // // fmt.Println(bounds)
+    // img, err := screenshot.CaptureRect(bounds)
+    // if err != nil {
+    //     panic(err)
+    // }
 
+
+    X, err := xgbutil.NewConn()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    canvas, _ := xgraphics.NewDrawable(X, xproto.Drawable(X.RootWin()))
+
+    bounds := image.Rect(0,0,w,h)
+	img = image.NewRGBA(bounds)
+
+	for jy := 0; jy < h; jy++{
+		for ix := 0; ix < w; ix++{
+			// x,y are the top left corner of the area to caputure - we are indexing into it
+			// canvas.Stride is the width of the current screen
+			index := ((jy + y) * canvas.Stride + (ix + x)*4 )
+			// fmt.Println(ix, jy, index)
+			R := canvas.Pix[index]
+			G := canvas.Pix[index+1]
+			B := canvas.Pix[index+2]
+			A := canvas.Pix[index+3]
+			_, _, _, _ = R, G, B, A
+			img.Set(ix,jy, color.RGBA{B,G,R,A})
+		}
+	}
+    return img
 }
 
 // Compare previous and current image - return false if they don't match
@@ -356,7 +309,21 @@ func diff_images(img1 *image.RGBA, img2 *image.RGBA) bool{
 }
 
 func main() {
+	// img := capture_image(0,64,34, 20)
+	img := capture_image(0,0,500,500)
+	if img == nil{
+		fmt.Println("returning no screen capture taken")
+		return
+	}
+	file, _ := os.Create("/tmp/aaa.png")
+	// TODO: invoking the tool with OS short - needs to set up path correctly
+	if err := png.Encode(file, img); err != nil{
+		fmt.Printf("error encoding %s\n", err)
+	}
 
+
+
+	/*
 	info, err := os.Stat("/dev/uinput")
 	m := info.Mode()
 
@@ -484,4 +451,6 @@ func main() {
     if err != nil{
         fmt.Println(err)
     }
+
+	*/
  }
