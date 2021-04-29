@@ -18,7 +18,7 @@ package main
     "os"
     "fmt"
     "log"
-    _ "time"
+    "time"
 
     "github.com/BurntSushi/xgbutil"
     "github.com/BurntSushi/xgbutil/ewmh"
@@ -33,12 +33,12 @@ package main
     "github.com/BurntSushi/xgb"  // active window
 
 
-    _ "github.com/micmonay/keybd_event"
+    "github.com/micmonay/keybd_event"
     "runtime"
     "regexp"
 
-    _ "github.com/jung-kurt/gofpdf"
-    _ "path/filepath"
+    "github.com/jung-kurt/gofpdf"
+    "path/filepath"
  )
 
 // This function returns the name of the current active window
@@ -277,7 +277,6 @@ func capture_image(x,y,w,h int) (*image.RGBA){
 			G := canvas.Pix[index+1]
 			B := canvas.Pix[index+2]
 			A := canvas.Pix[index+3]
-			_, _, _, _ = R, G, B, A
 			img.Set(ix,jy, color.RGBA{B,G,R,A})
 		}
 	}
@@ -309,21 +308,21 @@ func diff_images(img1 *image.RGBA, img2 *image.RGBA) bool{
 }
 
 func main() {
-	// img := capture_image(0,64,34, 20)
-	img := capture_image(0,0,500,500)
-	if img == nil{
-		fmt.Println("returning no screen capture taken")
-		return
-	}
-	file, _ := os.Create("/tmp/aaa.png")
-	// TODO: invoking the tool with OS short - needs to set up path correctly
-	if err := png.Encode(file, img); err != nil{
-		fmt.Printf("error encoding %s\n", err)
-	}
+	// // img := capture_image(0,64,34, 20)
+	// img := capture_image(0,0,500,500)
+	// if img == nil{
+	// 	fmt.Println("returning no screen capture taken")
+	// 	return
+	// }
+	// file, _ := os.Create("/tmp/aaa.png")
+	// // TODO: invoking the tool with OS short - needs to set up path correctly
+	// if err := png.Encode(file, img); err != nil{
+	// 	fmt.Printf("error encoding %s\n", err)
+	// }
 
 
 
-	/*
+
 	info, err := os.Stat("/dev/uinput")
 	m := info.Mode()
 
@@ -452,5 +451,4 @@ func main() {
         fmt.Println(err)
     }
 
-	*/
  }
