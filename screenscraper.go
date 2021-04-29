@@ -198,11 +198,10 @@ func getCaptureArea() (rect image.Rectangle) {
 
         err = mousebind.ButtonPressFun(
         func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
-            log.Println("A second handler always happens after the first.")
-        }).Connect(X, X.RootWin(), "1", false, true)
+        }).Connect(win.X, win.Id, "1", false, true)
 
 
-    mousebind.Drag(X, X.RootWin(), X.RootWin(), "1", false,
+    mousebind.Drag(win.X, win.Id, win.Id, "1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
@@ -229,8 +228,6 @@ func getCaptureArea() (rect image.Rectangle) {
     if err != nil {
         log.Fatal(err)
     }
-
-    log.Println("Program initialized. Start pressing mouse buttons!")
 
     // Record the area to process
     xevent.Main(X)
