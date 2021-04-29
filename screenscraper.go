@@ -1,6 +1,6 @@
 // A tool to automate screen-capturing long web pages and turn them into a Pdf.
 // Usage:
-// Run a tool, select a region to capture
+// Run a tool, shift-select a region to capture
 // The script takes a screen-shot and advance to the next fragment of the page.
 // Once the end of the page is reached, all captured images are converted to the Pdf
 // NOTE:
@@ -195,13 +195,13 @@ func getCaptureArea() (rect image.Rectangle) {
 
     // Once initialized turn to fullscreen (f11) to match coordinates on screen
     ewmh.WmStateReq(canvas.X, win.Id, ewmh.StateToggle, "_NET_WM_STATE_FULLSCREEN")
-
-        err = mousebind.ButtonPressFun(
+       err = mousebind.ButtonPressFun(
         func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
-        }).Connect(win.X, win.Id, "1", false, true)
+            log.Println("A second handler always happens after the first.")
+        }).Connect(X, X.RootWin(), "Shift-1", false, true)
 
 
-    mousebind.Drag(win.X, win.Id, win.Id, "1", false,
+    mousebind.Drag(X, X.RootWin(), X.RootWin(), "Shift-1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
