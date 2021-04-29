@@ -41,7 +41,7 @@ package main
  )
 
 // This function returns the name of the current active window
-// Currently it is only used to pragmatically name resulted screenshots
+// Currently it is only used to programaticly generate name from resulted screenshots
 func getActiveWindowName() (string) {
 
     X, err := xgb.NewConn()
@@ -191,7 +191,7 @@ func getCaptureArea() (rect image.Rectangle) {
 
     bounds := image.Rect(0,0,canvas.Rect.Dx(),canvas.Rect.Dy())
 
-    win := canvas.XShowExtra("Select area to caputre", true)
+    win := canvas.XShowExtra("Select area to capture", true)
 
     // Once initialized turn to fullscreen (f11) to match coordinates on screen
     ewmh.WmStateReq(canvas.X, win.Id, ewmh.StateToggle, "_NET_WM_STATE_FULLSCREEN")
@@ -218,7 +218,7 @@ func getCaptureArea() (rect image.Rectangle) {
             bounds.Max.X = rx
             bounds.Max.Y = ry
 
-            // gracefully exit
+            // graceful exit
             xevent.Detach(win.X, win.Id)
             mousebind.Detach(win.X, win.Id)
             win.Destroy()
@@ -291,21 +291,21 @@ func diff_images(img1 *image.RGBA, img2 *image.RGBA) bool{
     return true
 }
 
+func text_capture(){
+	// img := capture_image(0,64,34, 20)
+	img := capture_image(0,0,500,500)
+	if img == nil{
+		fmt.Println("returning no screen capture taken")
+		return
+	}
+	file, _ := os.Create("/tmp/aaa.png")
+	// TODO: invoking the tool with OS short - needs to set up path correctly
+	if err := png.Encode(file, img); err != nil{
+		fmt.Printf("error encoding %s\n", err)
+	}
+}
+
 func main() {
-	// // img := capture_image(0,64,34, 20)
-	// img := capture_image(0,0,500,500)
-	// if img == nil{
-	// 	fmt.Println("returning no screen capture taken")
-	// 	return
-	// }
-	// file, _ := os.Create("/tmp/aaa.png")
-	// // TODO: invoking the tool with OS short - needs to set up path correctly
-	// if err := png.Encode(file, img); err != nil{
-	// 	fmt.Printf("error encoding %s\n", err)
-	// }
-
-
-
 
 	info, err := os.Stat("/dev/uinput")
 	m := info.Mode()
@@ -317,16 +317,6 @@ func main() {
 	}
 	
     bounds := getCaptureArea()
-
-    // NOTE: Focus on the target window is assumed here (This is no problem)
-    // if the program is executed using the shortcut but if started from
-    // terminal it will try to update terminal instead Chrome
-
-    // TODO: need to grab focus on the specific Window (Chrome in this case)
-    // In order to fire off go to the next page key action
-    // NOTE: maybe this is not necessary as in most cases we will run program
-    // from shortcut and the target window will already be in focus
-
 
     // Introduce some delay as we want to switch active window from the terminal
     // Note this is not the problem if we launch script from a shortcut
