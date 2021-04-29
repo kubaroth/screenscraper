@@ -143,8 +143,8 @@ func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x,y int){
     bg := xgraphics.BGRA{0x0, 0x0, 0x0, 0xff}; _ = bg
     pencil := xgraphics.BGRA{0xaa, 0x0, 0xff, 0x55};
     pencilTip := 10
-    width := 1600
-    height := 900 // TODO - get Bounds of the Monitor instead
+    width := canvas.Rect.Dx()
+    height := canvas.Rect.Dy()
     tipRect := midRect(x, y, pencilTip, pencilTip, width, height); _=tipRect
 
     // If the rectangle contains no pixels, don't draw anything.
