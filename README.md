@@ -7,6 +7,14 @@ Currently only supported on Linux as user input relies on X protocol.
 sudo chmod +0666 /dev/uinput
 screenscraper
 ```
+or permanently add user
+```
+sudo groupadd uinput
+sudo usermod -a -G uinput my_username
+sudo udevadm control --reload-rules
+echo "SUBSYSTEM==\"misc\", KERNEL==\"uinput\", GROUP=\"uinput\", MODE=\"0660\"" | sudo tee /etc/udev/rules.d/uinput.rules
+echo uinput | sudo tee /etc/modules-load.d/uinput.conf
+```
 alt-tab to switch focus to specific window
  
 ## Preview:
