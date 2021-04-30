@@ -260,8 +260,8 @@ func capture_image(x,y,w,h int) (*image.RGBA){
 			R := canvas.Pix[index]
 			G := canvas.Pix[index+1]
 			B := canvas.Pix[index+2]
-			A := canvas.Pix[index+3]
-			img.Set(ix,jy, color.RGBA{B,G,R,A})
+			//A := canvas.Pix[index+3]  // on Arm64 we get 0 instead of 255
+			img.Set(ix,jy, color.RGBA{B,G,R,255})
 		}
 	}
     return img
@@ -291,7 +291,7 @@ func diff_images(img1 *image.RGBA, img2 *image.RGBA) bool{
     return true
 }
 
-func text_capture(){
+func test_capture(){
 	// img := capture_image(0,64,34, 20)
 	img := capture_image(0,0,500,500)
 	if img == nil{
