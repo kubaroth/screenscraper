@@ -141,7 +141,7 @@ func midRect(x, y, width, height, canWidth, canHeight int) image.Rectangle {
 func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x,y int){
 
     bg := xgraphics.BGRA{0x0, 0x0, 0x0, 0xff}; _ = bg
-    pencil := xgraphics.BGRA{0xaa, 0x0, 0xff, 0x55};
+    pencil := xgraphics.BGRA{0xaa, 0x0, 0xff, 255};
     pencilTip := 10
     width := canvas.Rect.Dx()
     height := canvas.Rect.Dy()
@@ -238,13 +238,8 @@ func getCaptureArea() (rect image.Rectangle) {
     return bounds
 }
 
-func capture_image(x,y,w,h int) (*image.RGBA){
+func capture_image(X *xgbutil.XUtil, x,y,w,h int) (*image.RGBA){
     var img *image.RGBA
-
-    X, err := xgbutil.NewConn()
-    if err != nil {
-        log.Fatal(err)
-    }
 
     canvas, _ := xgraphics.NewDrawable(X, xproto.Drawable(X.RootWin()))
 
@@ -291,9 +286,9 @@ func diff_images(img1 *image.RGBA, img2 *image.RGBA) bool{
     return true
 }
 
-func test_capture(){
+func test_capture(X *xgbutil.XUtil){
 	// img := capture_image(0,64,34, 20)
-	img := capture_image(0,0,500,500)
+	img := capture_image(X,0,0,500,500)
 	if img == nil{
 		fmt.Println("returning no screen capture taken")
 		return
@@ -304,9 +299,23 @@ func test_capture(){
 		fmt.Printf("error encoding %s\n", err)
 	}
 }
+type linept struct{
+	x,y int
+}
+func test_draw_line(){
+	// (76,153)-(280,203)
+	pts := []linept{{76,153}, {76,155}, {77,166}, {78,184}, {82,206}, {89,228}, {100,247}, {115,261}, {134,269}, {160,269}, {191,260}, {222,247}, {248,231}, {265,220}, {275,213}, {280,208}, {283,206}, {284,204}, {284,204}, {284,203}, {284,203}, {283,203}, {283,202}, {283,202}, {283,202}, {283,202}, {282,202}, {281,203}, {280,203}, {280,203}}
+	fmt.Println(pts)
+	_ = pts
+
+
+
+}
 
 func main() {
-
+	test_draw_line()
+	return
+	
 	info, err := os.Stat("/dev/uinput")
 	m := info.Mode()
 
@@ -354,6 +363,11 @@ func main() {
     // Select keys to be pressed to advance to new page
     kb.SetKeys(keybd_event.VK_SPACE)
 
+    X, err := xgbutil.NewConn()
+    if err != nil {
+        log.Fatal(err)
+    }
+	
     // Run until we encounter the same page twice
     // NOTE: to interrupt Ctrl+C
     page := 0
@@ -365,7 +379,7 @@ func main() {
 
         fmt.Printf("Page: %d path: \"%s\"\n", page, fileName)
 
-        img = capture_image(x,y,w,h)
+        img = capture_image(X,x,y,w,h)
 
         if same := diff_images(img, img_prev); same == true{
             // Stopping - no cleanup is required as
