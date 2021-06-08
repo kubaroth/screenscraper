@@ -313,8 +313,8 @@ func test_draw_line(){
 }
 
 func main() {
-	test_draw_line()
-	return
+	// test_draw_line()
+	// return
 	
 	info, err := os.Stat("/dev/uinput")
 	m := info.Mode()
