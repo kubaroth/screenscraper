@@ -1,23 +1,19 @@
 # Overview
-A tool to automate process of screen capturing of long web pages.
-Currently only supported on Linux as user input relies on X protocol.
+A tool to automate process of screen capturing of long web pages or image sequence. The output is saved into a pdf file.
+Currently only support platform is Linux with X windowing system.
 
 ## Use:
 ```
-sudo chmod +0666 /dev/uinput
 screenscraper
 ```
-or permanently add user
+Once a capture region is selected the window focus automatically changes to the target window (currently Chrome) and capturing begins. Once two consecutive pages with the same content are encountered the capturing process stops and a pdf file is generated.
+ 
+## Build:
 ```
-sudo groupadd uinput
-sudo usermod -a -G uinput my_username
-sudo udevadm control --reload-rules
-echo "SUBSYSTEM==\"misc\", KERNEL==\"uinput\", GROUP=\"uinput\", MODE=\"0660\"" | sudo tee /etc/udev/rules.d/uinput.rules
-echo uinput | sudo tee /etc/modules-load.d/uinput.conf
+go build screenscraper.go
 ```
-alt-tab to switch focus to specific window
  
 ## Preview:
 ```
-evince /tmp/GitHubkubarothpgmvc_hdk_tbbMozillaFirefox.pdf
+evince /tmp/generated_pdf_file.pdf
 ```

@@ -48,7 +48,7 @@ func bringWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
 	// We set Focus which then receives key events
 	xproto.SetInputFocus(X.Conn(), xproto.InputFocusParent, destination_window, xproto.TimeCurrentTime)
 
-	time.Sleep(2000 * time.Millisecond)
+	// time.Sleep(2000 * time.Millisecond)
 	fmt.Println("active window is now", destination_window)
 
 	ewmh.WmStateReq(X, destination_window, ewmh.StateToggle, "_NET_WM_STATE_ABOVE")
@@ -59,7 +59,7 @@ func disableWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
 }
 
 func nextPage(X *xgbutil.XUtil, destination_window xproto.Window) {
-	PAGE_DOWN      := 117
+	PAGE_DOWN    := 117
 
 	// Press key
 	xtest.FakeInput(X.Conn(),
@@ -80,7 +80,7 @@ func nextPage(X *xgbutil.XUtil, destination_window xproto.Window) {
 		0,0,
 		0)
 
-	time.Sleep(2000 * time.Millisecond)
+	// time.Sleep(2000 * time.Millisecond)
 }
 
 func main(){

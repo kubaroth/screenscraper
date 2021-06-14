@@ -18,10 +18,12 @@ package main
     "fmt"
     "log"
     "time"
+	"strings"
 
     "github.com/BurntSushi/xgbutil"
     "github.com/BurntSushi/xgbutil/ewmh"
     "github.com/BurntSushi/xgbutil/xwindow"
+	"github.com/BurntSushi/xgb/xtest"
 
     "github.com/BurntSushi/xgbutil/mousebind"
     "github.com/BurntSushi/xgbutil/xevent"
@@ -32,7 +34,7 @@ package main
     "github.com/BurntSushi/xgb"  // active window
 
 
-    "github.com/micmonay/keybd_event"
+    // "github.com/micmonay/keybd_event"
     "runtime"
     "regexp"
 
@@ -99,6 +101,72 @@ func getActiveWindowName() (string) {
     window_name_to_focus := string(re.ReplaceAll([]byte(reply.Value), []byte("")))
 
     return window_name_to_focus
+
+}
+
+func getWindowId(X *xgbutil.XUtil, name string) (xproto.Window){
+
+	// Get a list of all client ids.
+	clientids, err := ewmh.ClientListGet(X)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(clientids)
+
+	var destination_window  xproto.Window;
+	for _, clientid := range clientids {
+		window_name, _ := ewmh.WmNameGet(X, clientid)
+		fmt.Println(name, clientid)
+		if strings.Contains(window_name, name) == true{
+			fmt.Println(destination_window);
+			fmt.Println("destination_window:", name);
+			destination_window = clientid
+		}
+		if destination_window == 0{
+			fmt.Println("No window found", destination_window)
+		}
+	}
+	return destination_window
+}
+
+func bringWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
+	// NOTE: Using a workaround.
+	// Instead of just ewmh.ActiveWindowSet which has no effect.
+	// We set Focus which then receives key events
+	xproto.SetInputFocus(X.Conn(), xproto.InputFocusParent, destination_window, xproto.TimeCurrentTime)
+
+	fmt.Println("active window is now", destination_window)
+
+	ewmh.WmStateReq(X, destination_window, ewmh.StateToggle, "_NET_WM_STATE_ABOVE")
+	// TODO need to resync - otherwise first captured image still contains previos state
+	// ewmh.WmSyncRequest(X, destination_window, 0) // this has not effect, perhaps needs different request counter
+	// Perhaps it will be enough to just send a dummy event before capturing starts
+}
+
+func disableWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
+	ewmh.WmStateReq(X, destination_window, ewmh.StateRemove, "_NET_WM_STATE_ABOVE")
+}
+
+func nextPage(X *xgbutil.XUtil, destination_window xproto.Window) {
+	PAGE_DOWN := 117
+
+	// Press key
+	xtest.FakeInput(X.Conn(),
+		xproto.KeyPress,
+		byte(PAGE_DOWN), 
+		xproto.TimeCurrentTime,
+		destination_window,
+		0,0,
+		0)
+
+	// Release key
+	xtest.FakeInput(X.Conn(),
+		xproto.KeyRelease,
+		byte(PAGE_DOWN), 
+		xproto.TimeCurrentTime,
+		destination_window,
+		0,0,
+		0)
 
 }
 
@@ -315,32 +383,15 @@ func test_draw_line(){
 func main() {
 	// test_draw_line()
 	// return
-	
-	info, err := os.Stat("/dev/uinput")
-	m := info.Mode()
-
-	fmt.Println(m.Perm().String())
-	if m.Perm().String() != "-rw-rw-rw-"{
-		fmt.Println("Keyboard input won't work - please change permissions:  sudo chmod +0666 /dev/uinput" )
-		return
-	}
-	
+		
     bounds := getCaptureArea()
 
-    // Introduce some delay as we want to switch active window from the terminal
-    // Note this is not the problem if we launch script from a shortcut
-    fmt.Println("Switch to window to start capturing...")
+	// Give some delay
     if runtime.GOOS == "linux" {
-        time.Sleep(5 * time.Second)
+        time.Sleep(1 * time.Second)
     }
 
     active_window_name := getActiveWindowName()
-
-    // Extract the bounds from the Window - downside here is that it will
-    // always include a toolbar. Also extract window_name for Chrome window
-    // for better file naming
-    // TODO: provide option to configure this
-    // x,y,w,h, active_window_name := window_sizes("Chrome"); _=window_name
 
     // Option 2: bounds are already defined by user
     x,y := bounds.Min.X, bounds.Min.Y
@@ -352,21 +403,17 @@ func main() {
     var img *image.RGBA
     var img_prev *image.RGBA
 
-    // NOTE: requires to run for the first time:
-    // sudo chmod +0666 /dev/uinput
-    kb, err := keybd_event.NewKeyBonding()
-    if err != nil {
-        panic(err)
-    }
-
-
-    // Select keys to be pressed to advance to new page
-    kb.SetKeys(keybd_event.VK_SPACE)
-
     X, err := xgbutil.NewConn()
     if err != nil {
         log.Fatal(err)
     }
+
+	xtest.Init(X.Conn())
+
+	destination_window := getWindowId(X, "Chrome")
+	bringWindowAbove(X, destination_window)
+
+	//TODO send some dummy event before capturing starts to allow X to redraw
 	
     // Run until we encounter the same page twice
     // NOTE: to interrupt Ctrl+C
@@ -400,26 +447,16 @@ func main() {
         // fmt.Printf("closing file #%d : %v \"%s\"\n", i, bounds, fileName)
         file.Close()
         // Next Page
-
-        kb.Press()
-        time.Sleep(10 * time.Millisecond)
-        kb.Release()
+		nextPage(X, destination_window)
+		
         // wait some time until the page scrolls - TODO: this may need some tuning
         time.Sleep(1000 * time.Millisecond)
 
         page += 1
     }
 
-    // scroll to the beginning
-    time.Sleep(2 * time.Second)
-    kb.HasSHIFT(true)  // now scrolls up with shoft+space
-
-    for i := 0; i < page; i++ {
-        kb.Press()
-        time.Sleep(10 * time.Millisecond)
-        kb.Release()
-    }
-
+	// Once done remove this property
+	disableWindowAbove(X, destination_window)
 
     // Ouput Pdf
     pdf := gofpdf.New("P", "mm", "A4", ""); _ =pdf
