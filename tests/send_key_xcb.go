@@ -15,13 +15,8 @@ import (
 
 )
 
-func main(){
-	X, err := xgbutil.NewConn()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	xtest.Init(X.Conn())
+func getWindowId(X *xgbutil.XUtil, name string) (xproto.Window){
 
 	// Get a list of all client ids.
 	clientids, err := ewmh.ClientListGet(X)
@@ -32,9 +27,9 @@ func main(){
 
 	var destination_window  xproto.Window;
 	for _, clientid := range clientids {
-		name, _ := ewmh.WmNameGet(X, clientid)
+		window_name, _ := ewmh.WmNameGet(X, clientid)
 		fmt.Println(name, clientid)
-		if strings.Contains(name, "Chrome") == true{
+		if strings.Contains(window_name, name) == true{
 			fmt.Println(destination_window);
 			fmt.Println("destination_window:", name);
 			destination_window = clientid
@@ -44,7 +39,10 @@ func main(){
 			// TODO return 
 		}
 	}
+	return destination_window
+}
 
+func bringWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
 	// NOTE: Using a workaround.
 	// Instead of just ewmh.ActiveWindowSet which has no effect.
 	// We set Focus which then receives key events
@@ -54,7 +52,13 @@ func main(){
 	fmt.Println("active window is now", destination_window)
 
 	ewmh.WmStateReq(X, destination_window, ewmh.StateToggle, "_NET_WM_STATE_ABOVE")
+}
 
+func disableWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
+	ewmh.WmStateReq(X, destination_window, ewmh.StateRemove, "_NET_WM_STATE_ABOVE")
+}
+
+func nextPage(X *xgbutil.XUtil, destination_window xproto.Window) {
 	PAGE_DOWN      := 117
 
 	// Press key
@@ -77,7 +81,25 @@ func main(){
 		0)
 
 	time.Sleep(2000 * time.Millisecond)
+}
+
+func main(){
+	X, err := xgbutil.NewConn()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	xtest.Init(X.Conn())
+
+	destination_window := getWindowId(X, "Chrome") 
+
+	bringWindowAbove(X, destination_window)
+
+	nextPage(X, destination_window)
+	time.Sleep(2000 * time.Millisecond)
+	nextPage(X, destination_window)
+	time.Sleep(2000 * time.Millisecond)
 
 	// Once done remove this property
-	ewmh.WmStateReq(X, destination_window, ewmh.StateRemove, "_NET_WM_STATE_ABOVE")
+	disableWindowAbove(X, destination_window)
 }
