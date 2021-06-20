@@ -4,10 +4,7 @@
 // The script takes a screen-shot and advance to the next fragment of the page.
 // Once the end of the page is reached, all captured images are converted to the Pdf
 // NOTE:
-// Before first run you need to change permission of /dev/uinput
-//     sudo chmod +0666 /dev/uinput
-// NOTE:
-// Linux support only at the moment as it heavily relies on (great!) xcb package
+// Linux support only at the moment as it exclusively rely on xcb (X11) package
 package main
 
  import (
@@ -138,9 +135,12 @@ func bringWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
 	fmt.Println("active window is now", destination_window)
 
 	ewmh.WmStateReq(X, destination_window, ewmh.StateToggle, "_NET_WM_STATE_ABOVE")
-	// TODO need to resync - otherwise first captured image still contains previos state
-	// ewmh.WmSyncRequest(X, destination_window, 0) // this has not effect, perhaps needs different request counter
-	// Perhaps it will be enough to just send a dummy event before capturing starts
+
+	// Looks like all we need after changing active windows is to give some time
+	// for X server to refresh. This will assure the first captured image
+	// will not store previous window order
+	time.Sleep(1*time.Second)
+
 }
 
 func disableWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
@@ -148,6 +148,7 @@ func disableWindowAbove(X *xgbutil.XUtil, destination_window xproto.Window){
 }
 
 func nextPage(X *xgbutil.XUtil, destination_window xproto.Window) {
+	// https://www.x.org/releases/X11R7.7/doc/xextproto/xtest.html
 	PAGE_DOWN := 117
 
 	// Press key
@@ -383,15 +384,14 @@ func test_draw_line(){
 func main() {
 	// test_draw_line()
 	// return
-		
+
+	// TODO - use rectangle instead of brush
     bounds := getCaptureArea()
 
 	// Give some delay
     if runtime.GOOS == "linux" {
         time.Sleep(1 * time.Second)
     }
-
-    active_window_name := getActiveWindowName()
 
     // Option 2: bounds are already defined by user
     x,y := bounds.Min.X, bounds.Min.Y
@@ -411,9 +411,11 @@ func main() {
 	xtest.Init(X.Conn())
 
 	destination_window := getWindowId(X, "Chrome")
+	//TODO exit if not found
 	bringWindowAbove(X, destination_window)
 
-	//TODO send some dummy event before capturing starts to allow X to redraw
+	// TODO - reuse destination_window
+	active_window_name := getActiveWindowName()
 	
     // Run until we encounter the same page twice
     // NOTE: to interrupt Ctrl+C
@@ -455,6 +457,7 @@ func main() {
         page += 1
     }
 
+	// TODO defer?
 	// Once done remove this property
 	disableWindowAbove(X, destination_window)
 
