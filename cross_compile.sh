@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 archs=(amd64 arm64 arm)
 
 for arch in ${archs[@]}
