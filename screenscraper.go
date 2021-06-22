@@ -410,7 +410,7 @@ func main() {
 
 	xtest.Init(X.Conn())
 
-	destination_window := getWindowId(X, "Chrome")
+	destination_window := getWindowId(X, "Chrom")
 	//TODO exit if not found
 	bringWindowAbove(X, destination_window)
 
