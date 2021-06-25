@@ -16,6 +16,7 @@ package main
     "log"
     "time"
 	"strings"
+	"flag"
 
     "github.com/BurntSushi/xgbutil"
     "github.com/BurntSushi/xgbutil/ewmh"
@@ -382,6 +383,9 @@ func test_draw_line(){
 }
 
 func main() {
+	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture ")
+	flag.Parse()
+
 	// test_draw_line()
 	// return
 
@@ -410,7 +414,7 @@ func main() {
 
 	xtest.Init(X.Conn())
 
-	destination_window := getWindowId(X, "Chrom")
+	destination_window := getWindowId(X, *windowFlag)
 	//TODO exit if not found
 	bringWindowAbove(X, destination_window)
 
