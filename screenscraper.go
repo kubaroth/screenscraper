@@ -384,6 +384,7 @@ func test_draw_line(){
 
 func main() {
 	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture ")
+	var totalPagesFlag = flag.Int("p", -1, "Numer of pages to capture by default -1, does not stop ")
 	flag.Parse()
 
 	// test_draw_line()
@@ -459,11 +460,15 @@ func main() {
         time.Sleep(1000 * time.Millisecond)
 
         page += 1
+
+		if *totalPagesFlag > 0 && page >= *totalPagesFlag{
+			break
+		}
     }
 
-	// TODO defer?
+
 	// Once done remove this property
-	disableWindowAbove(X, destination_window)
+	defer disableWindowAbove(X, destination_window)
 
     // Ouput Pdf
     pdf := gofpdf.New("P", "mm", "A4", ""); _ =pdf
