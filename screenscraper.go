@@ -38,7 +38,10 @@ package main
 
     "github.com/jung-kurt/gofpdf"
     "path/filepath"
- )
+)
+
+
+var undos [][]byte  // undos are stored here
 
 // This function returns the name of the current active window
 // Currently it is only used to programaticly generate name from resulted screenshots
@@ -204,40 +207,63 @@ func midRect(x, y, width, height, canWidth, canHeight int) image.Rectangle {
     return val
 }
 
+func drawRestorePrevious(canvas *xgraphics.Image, win *xwindow.Window) {
 
-// This method currenlty just paints the brush stroke.
-// Start/End represent Bounding box corners
-// TODO: draw real area for better preview
-func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x,y int){
+	///// back to the previously modified image
 
-    bg := xgraphics.BGRA{0x0, 0x0, 0x0, 0xff}; _ = bg
-    pencil := xgraphics.BGRA{0xaa, 0x0, 0xff, 255};
-    pencilTip := 10
-    width := canvas.Rect.Dx()
-    height := canvas.Rect.Dy()
-    tipRect := midRect(x, y, pencilTip, pencilTip, width, height); _=tipRect
+	img := undos[len(undos)-1]
 
-    // If the rectangle contains no pixels, don't draw anything.
-    if tipRect.Empty() {
-        return
-    }
+	for i := 0; i < len(canvas.Pix); i += 4 {
+		_i := i / 4
+		_x := _i % (canvas.Stride / 4)
+		_y := _i / (canvas.Stride / 4)
 
-    // Create the subimage of the canvas to draw to.
-    tip := canvas.SubImage(tipRect).(*xgraphics.Image)
+		b := img[i]
+		g := img[i+1]
+		r := img[i+2]
 
+		canvas.Set(_x, _y, color.RGBA{r, g, b, 255})
 
-    // Now color each pixel in tip with the pencil color.
-    tip.For(func(x, y int) xgraphics.BGRA {
-        return xgraphics.BlendBGRA(tip.At(x, y).(xgraphics.BGRA), pencil)
-    })
-
-    // Now draw the changes to the pixmap.
-    tip.XDraw()
-
-    // And paint them to the window.
-    tip.XPaint(win.Id)
+	}
+	canvas.XDraw()
+	canvas.XPaint(win.Id)
 }
 
+// TODO - painting the rectangle / resotring previous version is quite slow
+func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x, y, start_x, start_y int) {
+
+	// restore original image (this avoids ghosting)
+	drawRestorePrevious(canvas, win)
+
+	// Draw bounds outside selection region
+	rectXtop := image.Rect(start_x, start_y, x, start_y-2)
+	rectXbottom := image.Rect(start_x, y, x, y+2)
+	rectYleft := image.Rect(start_x, start_y, start_x-2, y)
+	rectYright := image.Rect(x, start_y, x+2, y)
+
+	bounds_arr := []image.Rectangle{rectXtop, rectXbottom, rectYleft, rectYright}
+	pencil := xgraphics.BGRA{0x00, 0xff, 0x0, 125}
+
+	for _, rect := range bounds_arr {
+
+		if rect.Empty() {
+			continue
+		}
+		// Create the subimage of the canvas to draw to.
+		tip := canvas.SubImage(rect).(*xgraphics.Image)
+
+		// Now color each pixel in tip with the pencil color.
+		tip.For(func(x, y int) xgraphics.BGRA {
+			return xgraphics.BlendBGRA(tip.At(x, y).(xgraphics.BGRA), pencil /* color*/)
+		})
+
+		// Now draw the changes to the pixmap.
+		tip.XDraw()
+
+		// And paint them to the window.
+		tip.XPaint(win.Id)
+	}
+}
 
 // Function to allow user input and select area of the screen to capture
 // Currenlty the bounding box is represented by paint stroke where
@@ -270,17 +296,26 @@ func getCaptureArea() (rect image.Rectangle) {
             log.Println("A second handler always happens after the first.")
         }).Connect(X, X.RootWin(), "Shift-1", false, true)
 
-
+	// before first brush stroke - push original image onto undo stack
+	undo_step := make([]byte, len(canvas.Pix))
+	copy(undo_step, canvas.Pix)
+	undos = append(undos, undo_step)
+	
+	// cropping
+	var start_rx, start_ry int
     mousebind.Drag(X, X.RootWin(), X.RootWin(), "Shift-1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
             bounds.Min.Y = ry
+
+			start_rx = rx
+			start_ry = ry
             return true, 0
         },
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) {
             log.Println("pressed", rx, ry)
-            drawRect(canvas, win , rx, ry)
+            drawRect(canvas, win , rx, ry, start_rx, start_ry)
 
         },
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) {
@@ -383,8 +418,8 @@ func test_draw_line(){
 }
 
 func main() {
-	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture ")
-	var totalPagesFlag = flag.Int("p", -1, "Numer of pages to capture by default -1, does not stop ")
+	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture. The default window name is 'Chrom' which will Chrome and Chromium on some platforms.")
+	var totalPagesFlag = flag.Int("p", -1, "Total numer of pages to capture. The default -1, does not interupt capturing.")
 	flag.Parse()
 
 	// test_draw_line()
