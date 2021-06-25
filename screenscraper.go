@@ -294,7 +294,7 @@ func getCaptureArea() (rect image.Rectangle) {
        err = mousebind.ButtonPressFun(
         func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
             log.Println("A second handler always happens after the first.")
-        }).Connect(X, X.RootWin(), "Shift-1", false, true)
+        }).Connect(X, X.RootWin(), "1", false, true)
 
 	// before first brush stroke - push original image onto undo stack
 	undo_step := make([]byte, len(canvas.Pix))
@@ -303,7 +303,7 @@ func getCaptureArea() (rect image.Rectangle) {
 	
 	// cropping
 	var start_rx, start_ry int
-    mousebind.Drag(X, X.RootWin(), X.RootWin(), "Shift-1", false,
+    mousebind.Drag(X, X.RootWin(), X.RootWin(), "1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
