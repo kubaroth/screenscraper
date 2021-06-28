@@ -42,7 +42,7 @@ package main
 
 
 var undos [][]byte  // undos are stored here
-var WIDTH = 1       // Width of the brushe used for drawing bounding box
+var WIDTH = 2       // Width of the brushe used for drawing bounding box
 
 // This function returns the name of the current active window
 // Currently it is only used to programaticly generate name from resulted screenshots
