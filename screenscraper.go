@@ -42,6 +42,7 @@ package main
 
 
 var undos [][]byte  // undos are stored here
+var WIDTH = 1       // Width of the brushe used for drawing bounding box
 
 // This function returns the name of the current active window
 // Currently it is only used to programaticly generate name from resulted screenshots
@@ -207,39 +208,63 @@ func midRect(x, y, width, height, canWidth, canHeight int) image.Rectangle {
     return val
 }
 
-func drawRestorePrevious(canvas *xgraphics.Image, win *xwindow.Window) {
+func drawRestorePrevious(canvas *xgraphics.Image, win *xwindow.Window, x, y, prev_x, prev_y int) {
 
 	///// back to the previously modified image
 
 	img := undos[len(undos)-1]
-
+	_ = img
+	counter := 0
 	for i := 0; i < len(canvas.Pix); i += 4 {
 		_i := i / 4
 		_x := _i % (canvas.Stride / 4)
 		_y := _i / (canvas.Stride / 4)
 
+		_, _ = _x,_y
+
 		b := img[i]
 		g := img[i+1]
 		r := img[i+2]
+		_, _,_ = b,g,r
 
-		canvas.Set(_x, _y, color.RGBA{r, g, b, 255})
+		// Reset previous row or collumns
 
+		// Direction - right and down
+		/*
+		start 
+		     \
+		      \
+		       end
+		*/
+		if (_x >= prev_x-WIDTH && _x < x) || (_y >= prev_y-WIDTH && _y < y) {
+			canvas.Set(_x, _y, color.RGBA{r, g, b, 255})
+		}
+
+		// Direction - left and up
+		/*
+		end
+		   \
+		    \
+		     start
+		*/
+		if (_x <= prev_x+WIDTH && _x > x) || (_y <= prev_y+WIDTH && _y > y) {
+			canvas.Set(_x, _y, color.RGBA{r, g, b, 255})
+		}		
 	}
 	canvas.XDraw()
 	canvas.XPaint(win.Id)
+	fmt.Println("counter", counter)
 }
 
-// TODO - painting the rectangle / resotring previous version is quite slow
-func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x, y, start_x, start_y int) {
+func drawRect(canvas *xgraphics.Image, win *xwindow.Window, x, y, start_x, start_y, prev_x, prev_y int) {
 
 	// restore original image (this avoids ghosting)
-	drawRestorePrevious(canvas, win)
+	drawRestorePrevious(canvas, win, x, y, prev_x, prev_y)
 
-	// Draw bounds outside selection region
-	rectXtop := image.Rect(start_x, start_y, x, start_y-2)
-	rectXbottom := image.Rect(start_x, y, x, y+2)
-	rectYleft := image.Rect(start_x, start_y, start_x-2, y)
-	rectYright := image.Rect(x, start_y, x+2, y)
+	rectXtop := image.Rect(start_x, start_y, x, start_y-WIDTH)
+	rectXbottom := image.Rect(start_x, y, x, y-WIDTH)
+	rectYleft := image.Rect(start_x, start_y, start_x-WIDTH, y)
+	rectYright := image.Rect(x, start_y, x-WIDTH, y)
 
 	bounds_arr := []image.Rectangle{rectXtop, rectXbottom, rectYleft, rectYright}
 	pencil := xgraphics.BGRA{0x00, 0xff, 0x0, 125}
@@ -302,7 +327,7 @@ func getCaptureArea() (rect image.Rectangle) {
 	undos = append(undos, undo_step)
 	
 	// cropping
-	var start_rx, start_ry int
+	var start_rx, start_ry, prev_x, prev_y int
     mousebind.Drag(X, X.RootWin(), X.RootWin(), "1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
@@ -311,11 +336,15 @@ func getCaptureArea() (rect image.Rectangle) {
 
 			start_rx = rx
 			start_ry = ry
+			prev_x = rx
+			prev_y = ry
             return true, 0
         },
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) {
-            log.Println("pressed", rx, ry)
-            drawRect(canvas, win , rx, ry, start_rx, start_ry)
+            log.Println("pressed", rx, ry)			
+            drawRect(canvas, win , rx, ry, start_rx, start_ry, prev_x, prev_y)
+			prev_x = rx
+			prev_y = ry
 
         },
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) {
@@ -425,7 +454,6 @@ func main() {
 	// test_draw_line()
 	// return
 
-	// TODO - use rectangle instead of brush
     bounds := getCaptureArea()
 
 	// Give some delay
@@ -491,7 +519,7 @@ func main() {
         // Next Page
 		nextPage(X, destination_window)
 		
-        // wait some time until the page scrolls - TODO: this may need some tuning
+        // wait some time until the page scrolls - NOTE: this may need some tuning in the future
         time.Sleep(1000 * time.Millisecond)
 
         page += 1
