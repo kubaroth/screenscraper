@@ -118,7 +118,7 @@ func getWindowId(X *xgbutil.XUtil, name string) (xproto.Window){
 	var destination_window  xproto.Window;
 	for _, clientid := range clientids {
 		window_name, _ := ewmh.WmNameGet(X, clientid)
-		fmt.Println(name, clientid)
+		fmt.Println(name, clientid, window_name)
 		if strings.Contains(window_name, name) == true{
 			fmt.Println(destination_window);
 			fmt.Println("destination_window:", name);
@@ -319,7 +319,7 @@ func getCaptureArea() (rect image.Rectangle) {
        err = mousebind.ButtonPressFun(
         func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
             log.Println("A second handler always happens after the first.")
-        }).Connect(X, X.RootWin(), "1", false, true)
+        }).Connect(X, win.Id, "1", false, true)
 
 	// before first brush stroke - push original image onto undo stack
 	undo_step := make([]byte, len(canvas.Pix))
@@ -328,7 +328,7 @@ func getCaptureArea() (rect image.Rectangle) {
 	
 	// cropping
 	var start_rx, start_ry, prev_x, prev_y int
-    mousebind.Drag(X, X.RootWin(), X.RootWin(), "1", false,
+    mousebind.Drag(X, win.Id, win.Id, "1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
@@ -449,13 +449,24 @@ func test_draw_line(){
 func main() {
 	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture. The default window name is 'Chrom' which will Chrome and Chromium on some platforms.")
 	var totalPagesFlag = flag.Int("p", -1, "Total numer of pages to capture. The default -1, does not interupt capturing.")
+	var doublePage = flag.Bool("split", false, "Select and split captured image into two separate pages ")
 	flag.Parse()
 
 	// test_draw_line()
 	// return
 
-    bounds := getCaptureArea()
+    bounds := getCaptureArea() 
 
+	// For the optional second page
+	var bounds2 image.Rectangle
+	var w2,h2,x2,y2 int
+	
+	if *doublePage == true {
+		fmt.Println("------------------double page", *doublePage)
+		bounds2 = getCaptureArea(); _ = bounds2
+	}
+
+	
 	// Give some delay
     if runtime.GOOS == "linux" {
         time.Sleep(1 * time.Second)
@@ -466,6 +477,12 @@ func main() {
     w := bounds.Max.X - bounds.Min.X
     h := bounds.Max.Y - bounds.Min.Y
 
+	if *doublePage == true {
+		x2,y2 = bounds2.Min.X, bounds2.Min.Y
+		w2 = bounds2.Max.X - bounds2.Min.X
+		h2 = bounds2.Max.Y - bounds2.Min.Y
+	}
+		
     fmt.Println("Capture geometry", x,y,w,h)
 
     var img *image.RGBA
@@ -516,7 +533,21 @@ func main() {
 
         // fmt.Printf("closing file #%d : %v \"%s\"\n", i, bounds, fileName)
         file.Close()
-        // Next Page
+
+		if *doublePage == true {
+			page += 1
+			fileName := fmt.Sprintf("%s/%s_page%04d.png", os.TempDir(), active_window_name, page )
+			img = capture_image(X,x2,y2,w2,h2)
+			file, _ := os.Create(fileName)
+			if err := png.Encode(file, img); err != nil{
+				fmt.Printf("error encoding %s\n", err)
+			}
+			file.Close()
+			
+		}
+
+
+		// Next Page
 		nextPage(X, destination_window)
 		
         // wait some time until the page scrolls - NOTE: this may need some tuning in the future
