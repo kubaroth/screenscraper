@@ -305,7 +305,6 @@ func getCaptureArea() (rect image.Rectangle) {
     }
     mousebind.Initialize(X)
 
-
     // Capture the state of the current screen - this workarounds the problem
     // of dealing with opacities which may require the feature to be enabled in compositor
     canvas, _ := xgraphics.NewDrawable(X, xproto.Drawable(X.RootWin()))
@@ -314,12 +313,18 @@ func getCaptureArea() (rect image.Rectangle) {
 
     win := canvas.XShowExtra("Select area to capture", true)
 
-    // Once initialized turn to fullscreen (f11) to match coordinates on screen
+    // Once initialized window (where the selection rectangel will be drawn) turn to fullscreen (f11) to match coordinates on screen
     ewmh.WmStateReq(canvas.X, win.Id, ewmh.StateToggle, "_NET_WM_STATE_FULLSCREEN")
-       err = mousebind.ButtonPressFun(
-        func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
-            log.Println("A second handler always happens after the first.")
-        }).Connect(X, win.Id, "1", false, true)
+
+    // NOTE: Bind mouse to the root window as 
+    err = mousebind.ButtonPressFun(
+    func(X *xgbutil.XUtil, e xevent.ButtonPressEvent) {
+        log.Println("A second handler always happens after the first.", win.Id, X.RootWin())
+    }).Connect(X, X.RootWin(), "1", false, true)  // 1 is the LeftMouseButton
+
+    if err != nil {
+        log.Fatal(err)
+    }
 
 	// before first brush stroke - push original image onto undo stack
 	undo_step := make([]byte, len(canvas.Pix))
@@ -328,7 +333,7 @@ func getCaptureArea() (rect image.Rectangle) {
 	
 	// cropping
 	var start_rx, start_ry, prev_x, prev_y int
-    mousebind.Drag(X, win.Id, win.Id, "1", false,
+    mousebind.Drag(X, X.RootWin(), X.RootWin(), "1", false,
         func(X *xgbutil.XUtil, rx, ry, ex, ey int) (bool, xproto.Cursor) {
             log.Println("starting", rx, ry)
             bounds.Min.X = rx
@@ -353,15 +358,11 @@ func getCaptureArea() (rect image.Rectangle) {
             bounds.Max.Y = ry
 
             // graceful exit
-            xevent.Detach(win.X, win.Id)
-            mousebind.Detach(win.X, win.Id)
+            xevent.Detach(win.X, X.RootWin())
+            mousebind.Detach(win.X, X.RootWin())
             win.Destroy()
             xevent.Quit(X)
         })
-
-    if err != nil {
-        log.Fatal(err)
-    }
 
     // Record the area to process
     xevent.Main(X)
@@ -447,7 +448,7 @@ func test_draw_line(){
 }
 
 func main() {
-	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture. The default window name is 'Chrom' which will Chrome and Chromium on some platforms.")
+	var windowFlag = flag.String("w", "Chrom", "Name of the window to capture. The default window name is 'Chrom' (missing 'e') which is a common prefix of Chrom(e) and Chrom(ium) on some platforms.")
 	var totalPagesFlag = flag.Int("p", -1, "Total numer of pages to capture. The default -1, does not interupt capturing.")
 	var doublePage = flag.Bool("split", false, "Select and split captured image into two separate pages ")
 	flag.Parse()
@@ -550,8 +551,9 @@ func main() {
 		// Next Page
 		nextPage(X, destination_window)
 		
-        // wait some time until the page scrolls - NOTE: this may need some tuning in the future
-        time.Sleep(1000 * time.Millisecond)
+        // Wait some time until the page scrolls - NOTE: this may need some tuning in the future
+        // TODO: this should be configurable as a command line parameter.
+        time.Sleep(2 * time.Second)
 
         page += 1
 
@@ -573,7 +575,7 @@ func main() {
     for _, path := range paths{
         fmt.Println(path)
         pdf.AddPage()
-        pdf.Image(path, 0, 0, 211, 0, false, "", 0, "")
+        pdf.Image(path, 0, 0, 0, 0, false, "", 0, "")
     }
     outpath := fmt.Sprintf("%s/%s.pdf", os.TempDir(), active_window_name)
     fmt.Println(outpath)
